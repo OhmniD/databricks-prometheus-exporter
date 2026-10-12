@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbsql "github.com/databricks/databricks-sql-go"
+	"github.com/databricks/databricks-sql-go/auth"
 	"github.com/databricks/databricks-sql-go/auth/oauth/m2m"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -35,21 +36,14 @@ const (
 	labelQuery = "query"
 )
 
-// openDatabricksDatabase opens a connection to a Databricks SQL Warehouse using OAuth2 M2M authentication.
+// openDatabricksDatabase opens a connection to a Databricks SQL Warehouse.
 func openDatabricksDatabase(config *Config) (*sql.DB, error) {
-	// Create OAuth M2M authenticator with Service Principal credentials
-	authenticator := m2m.NewAuthenticator(
-		config.ClientID,
-		config.ClientSecret,
-		config.ServerHostname,
-	)
-
 	// Create connector with OAuth authentication
 	connector, err := dbsql.NewConnector(
 		dbsql.WithServerHostname(config.ServerHostname),
 		dbsql.WithHTTPPath(config.WarehouseHTTPPath),
 		dbsql.WithPort(443),
-		dbsql.WithAuthenticator(authenticator),
+		dbsql.WithAuthenticator(authenticatorForConfig(config)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connector: %w", err)
@@ -64,6 +58,14 @@ func openDatabricksDatabase(config *Config) (*sql.DB, error) {
 	db.SetConnMaxIdleTime(1 * time.Minute) // Close idle connections after 1 minute
 
 	return db, nil
+}
+
+func authenticatorForConfig(config *Config) auth.Authenticator {
+	if config.Authenticator != nil {
+		return config.Authenticator
+	}
+
+	return m2m.NewAuthenticator(config.ClientID, config.ClientSecret, config.ServerHostname)
 }
 
 // Collector is a prometheus.Collector that retrieves all metrics for a Databricks account.
