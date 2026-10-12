@@ -3,6 +3,8 @@ package collector
 import (
 	"errors"
 	"time"
+
+	"github.com/databricks/databricks-sql-go/auth"
 )
 
 // Time constants
@@ -34,6 +36,8 @@ type Config struct {
 	WarehouseHTTPPath string
 	ClientID          string
 	ClientSecret      string
+	// Authenticator overrides OAuth2 M2M authentication when non-nil.
+	Authenticator auth.Authenticator
 
 	// Query settings
 	QueryTimeout time.Duration // Timeout for individual database queries
@@ -86,12 +90,14 @@ func (c Config) Validate() error {
 		return errNoWarehouseHTTPPath
 	}
 
-	if c.ClientID == "" {
-		return errNoClientID
-	}
+	if c.Authenticator == nil {
+		if c.ClientID == "" {
+			return errNoClientID
+		}
 
-	if c.ClientSecret == "" {
-		return errNoClientSecret
+		if c.ClientSecret == "" {
+			return errNoClientSecret
+		}
 	}
 
 	return nil

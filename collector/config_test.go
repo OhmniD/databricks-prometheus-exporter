@@ -1,8 +1,15 @@
 package collector
 
 import (
+	"net/http"
 	"testing"
 )
+
+type testAuthenticator struct{}
+
+func (testAuthenticator) Authenticate(*http.Request) error {
+	return nil
+}
 
 func TestConfigValidate(t *testing.T) {
 	tests := []struct {
@@ -18,6 +25,15 @@ func TestConfigValidate(t *testing.T) {
 				WarehouseHTTPPath: "/sql/1.0/warehouses/abc123",
 				ClientID:          "test-client-id",
 				ClientSecret:      "test-client-secret",
+			},
+			expectError: false,
+		},
+		{
+			name: "custom authenticator without M2M credentials",
+			config: Config{
+				ServerHostname:    "dbc-abc123-def456.cloud.databricks.com",
+				WarehouseHTTPPath: "/sql/1.0/warehouses/abc123",
+				Authenticator:     testAuthenticator{},
 			},
 			expectError: false,
 		},
@@ -135,6 +151,15 @@ func TestConfigValidate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAuthenticatorForConfig(t *testing.T) {
+	customAuthenticator := testAuthenticator{}
+	config := &Config{Authenticator: customAuthenticator}
+
+	if got := authenticatorForConfig(config); got != customAuthenticator {
+		t.Fatalf("expected configured authenticator %T, got %T", customAuthenticator, got)
 	}
 }
 
